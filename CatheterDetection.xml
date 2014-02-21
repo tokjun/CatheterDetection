@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="utf-8"?>
+<executable>
+  <category>IGT</category>
+  <index>3</index>
+  <title>Catheter Detection</title>
+  <description>
+	  Apply a gaussian blurr to an image
+</description>
+  <version>0.1.0.$Revision: 1.1 $(alpha)</version>
+  <documentation-url>http://https://github.com/SNRLab/CatheterDetection</documentation-url>
+  <license></license>
+  <contributor>Junichi Tokuda</contributor>
+<acknowledgements>
+This work is part of NIH 5R01 CA111288 -- Enabling Technologies for MRI-guided Prostate Interventions (PI: Clare M. Tempany).
+</acknowledgements>
+
+  <parameters>
+    <label>IO</label>
+    <description>Input/output parameters</description>
+    <image>
+      <name>inputVolume</name>
+      <label>Input Volume</label>
+      <channel>input</channel>
+      <index>0</index>
+      <description>Input volume</description>
+    </image>
+    <image type="label">
+
+      <!--<image>-->
+      <name>outputVolume</name>
+      <label>Output Volume</label>
+      <channel>output</channel>
+      <index>1</index>
+      <description>Blurred Volume</description>
+    </image>
+    <transform fileExtensions=".txt" reference="CatheterPositionFileName">
+      <name>needleTransform</name>
+      <longflag>needletransform</longflag>
+      <description>Position and orientation of detected needle.</description>
+      <label>Catheter transform</label>
+      <channel>output</channel>
+    </transform>
+  </parameters>
+
+  <parameters>
+    <label>Smoothing</label>
+    <description>Smoothing parameter</description>
+    <double>
+      <name>sigma1</name>
+      <longflag>sigma1</longflag>
+      <flag>s</flag>
+      <label>Sigma1</label>
+      <description>Sigma value in physical units (e.g., mm) of the Gaussian kernel for smoothing</description>
+      <default>0.5</default>
+    </double>
+  </parameters>
+  <parameters>
+    <label>Hessian and Eigen Analysis</label>
+    <description>Hessian and eigen analysis parameters</description>
+    <boolean>
+      <name>positivecontrast</name>
+      <longflag>positivecontrast</longflag>
+      <flag>p</flag>
+      <label>Pos. Contrast</label>
+      <description>Check if the needle is positive contrast (e.g. CT)</description>
+      <default>false</default>
+    </boolean>
+    <double>
+      <name>minsigma</name>
+      <longflag>minsigma</longflag>
+      <flag>u</flag>
+      <label>Min. Sigma</label>
+      <description>Minimum Sigma value in physical units (e.g., mm) of the Gaussian kernel for needle thickness</description>
+      <default>0.5</default>
+    </double>
+    <double>
+      <name>maxsigma</name>
+      <longflag>maxsigma</longflag>
+      <flag>v</flag>
+      <label>Max. Sigma</label>
+      <description>Maximum Sigma value in physical units (e.g., mm) of the Gaussian kernel for needle thickness</description>
+      <default>1.3</default>
+    </double>
+    <integer>
+      <name>stepsigma</name>
+      <longflag>stepsigma</longflag>
+      <flag>w</flag>
+      <label>Sigma Steps</label>
+      <description>Number of steps for multi-scale Hessian vesselness measure.</description>
+      <default>5</default>
+    </integer>
+    <double>
+      <name>alpha</name>
+      <longflag>alpha</longflag>
+      <flag>a</flag>
+      <label>Alpha</label>
+      <description>Alpha parameter for vesselness filter</description>
+      <default>0.5</default>
+    </double>
+    <double>
+      <name>beta</name>
+      <longflag>beta</longflag>
+      <flag>b</flag>
+      <label>Beta</label>
+      <description>Beta parameter for vesselness filter</description>
+      <default>1.0</default>
+    </double>
+    <double>
+      <name>gamma</name>
+      <longflag>gamma</longflag>
+      <flag>g</flag>
+      <label>Gamma</label>
+      <description>Gamma parameter for vesselness filter</description>
+      <default>5.0</default>
+    </double>
+    <double>
+      <name>minimumMeanObjectnessMeasure</name>
+      <longflag>minMeanObj</longflag>
+      <flag>m</flag>
+      <label>Min. Mean Objectness</label>
+      <description>Minimum mean objectiveness measure in a region</description>
+      <default>0.2</default>
+    </double>
+    <double>
+      <name>anglethreshold</name>
+      <longflag>anglethoreshold</longflag>
+      <flag>t</flag>
+      <label>Angle Threshold</label>
+      <description>Threshold for angle from Normal Vector (deg)</description>
+      <default>25.0</default>
+    </double>
+    <double-vector>
+      <name>normal</name>
+      <longflag>normal</longflag>
+      <flag>n</flag>
+      <label>Normal Vector</label>
+      <description>Normal vector for base needle orientation</description>
+      <default>0.0,0.0,1.0</default>
+    </double-vector>
+  </parameters>
+
+  <parameters>
+    <label>Otsu Threshold Parameters</label>
+    <description>Parameters for Otsu Thresholding</description>
+    <integer>
+      <name>numberOfBins</name>
+      <longflag>--numberOfBins</longflag>
+      <description>
+	This is an advanced parameter. The number of bins in the histogram used to model the probability mass function of the two intensity distributions. Small numbers of bins may result in a more conservative threshold. The default should suffice for most applications. Experimentation is the only way to see the effect of varying this parameter.
+      </description>
+      <label>Number of Histogram Bins</label>
+      <default>128</default>
+    </integer>
+    <integer>
+      <name>minimumObjectSize</name>
+      <longflag>--minimumObjectSize</longflag>
+      <description>Minimum size of object to retain. This parameter can be used to get rid of small regions in noisy images.</description>
+      <label>Minimum Object Size</label>
+      <default>50</default>
+    </integer>
+  </parameters>
+  <parameters>
+    <label>Catheter Identification Parameters</label>
+    <description>Parameters for Catheter Identification using PCA</description>
+    <float>
+      <name>minPrincipalAxisLength</name>
+      <longflag>--minPrincipalAxisLength</longflag>
+      <description>
+	Minimum length of the principal axis of the needle artifact.
+      </description>
+      <label>Min. Principal Axis Length</label>
+      <default>50.0</default>
+    </float>
+    <float>
+      <name>maxThickness</name>
+      <longflag>--maxThickness</longflag>
+      <description>
+	Maximum thickness of the artifact.
+      </description>
+      <label>Max. Thickness</label>
+      <default>10.0</default>
+    </float>
+    <double-vector>
+      <name>closestPoint</name>
+      <longflag>closestPoint</longflag>
+      <flag>c</flag>
+      <label>Closest point</label>
+      <description>Point closet to the needle</description>
+      <default>0.0,0.0,0.0</default>
+    </double-vector>
+
+  </parameters>
+
+
+</executable>
