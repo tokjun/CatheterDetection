@@ -33,6 +33,8 @@
 #include "itkRelabelComponentImageFilter.h"
 #include "itkMinimumMaximumImageFilter.h"
 
+#include "itkCurvatureAnisotropicDiffusionImageFilter.h"
+
 //#include "itkMultiplyByConstantImageFilter.h"
 #include "itkTransformFileWriter.h"
 
@@ -47,6 +49,8 @@
 #include "itkBinaryImageToLabelMapFilter.h"
 
 #include "itkChangeLabelImageFilter.h"
+#include "itkAddImageFilter.h"
+
 
 #include "itkImage.h"
 #include "itkImageFileReader.h"
@@ -83,17 +87,20 @@ template<class T> int DoIt( int argc, char * argv[], T )
   //typedef   itk::ImageFileWriter< InternalImageType > WriterType;
 
   // Smoothing filter
-  typedef   itk::SmoothingRecursiveGaussianImageFilter<
-    InternalImageType, InternalImageType > SmoothingFilterType;
+  typedef itk::CurvatureAnisotropicDiffusionImageFilter<
+    InternalImageType, InternalImageType >  SmoothingFilterType;
+
+  //typedef   itk::SmoothingRecursiveGaussianImageFilter<
+  //InternalImageType, InternalImageType > SmoothingFilterType;
   
   // Line enhancement filter
   //typedef   itk::Hessian3DToNeedleImageFilter<
   //  InternalPixelType > LineFilterType;
   // Otsu Threshold Segmentation filter
-  typedef   itk::OtsuThresholdImageFilter<
-    InternalImageType, InternalImageType >  OtsuFilterType;
+  //typedef   itk::OtsuThresholdImageFilter<
+  //  InternalImageType, InternalImageType >  OtsuFilterType;
   typedef   itk::ConnectedComponentImageFilter<
-    InternalImageType, OutputImageType >  CCFilterType;
+    OutputImageType, OutputImageType >  CCFilterType;
   typedef   itk::RelabelComponentImageFilter<
     OutputImageType, OutputImageType > RelabelType;
   // Line detection filter
@@ -108,58 +115,87 @@ template<class T> int DoIt( int argc, char * argv[], T )
   typedef itk::NumericTraits< InternalPixelType >::RealType RealPixelType;
   typedef itk::SymmetricSecondRankTensor< RealPixelType, Dimension > HessianPixelType;
   typedef itk::Image< HessianPixelType, Dimension >                  HessianImageType;
-  typedef itk::MultiScaleHessianBasedMeasureImageFilter< InternalImageType, HessianImageType, InternalImageType >
-    MultiScaleEnhancementFilterType;
-  typedef itk::HessianToObjectnessMeasureImageFilter< HessianImageType, InternalImageType > ObjectnessFilterType;
 
 
   typename ReaderType::Pointer reader = ReaderType::New();  
 
-  typename SmoothingFilterType::Pointer smoothing = SmoothingFilterType::New();
-
-  /*
-  typename HessianFilterType::Pointer hessianFilter = HessianFilterType::New();
-  */
-  //typename LineFilterType::Pointer lineFilter = LineFilterType::New();
-  
-  typename ObjectnessFilterType::Pointer objectnessFilter = ObjectnessFilterType::New();
-  MultiScaleEnhancementFilterType::Pointer multiScaleEnhancementFilter = MultiScaleEnhancementFilterType::New();
-  typename OtsuFilterType::Pointer OtsuFilter = OtsuFilterType::New();
   typename CCFilterType::Pointer CCFilter = CCFilterType::New();
   typename RelabelType::Pointer RelabelFilter = RelabelType::New();
   typename NeedleFilterType::Pointer needleFilter = NeedleFilterType::New();
 
   reader->SetFileName( inputVolume.c_str() );
+  reader->Update();
 
+  typename SmoothingFilterType::Pointer smoothing = SmoothingFilterType::New();
   smoothing->SetInput( reader->GetOutput() );
-  smoothing->SetSigma( static_cast< double >(sigma1) );
+  smoothing->SetNumberOfIterations( iterations );
+  smoothing->SetTimeStep( timeStep );
+  smoothing->SetConductanceParameter( conductance );
+  smoothing->UseImageSpacingOn();
+  smoothing->Update();
 
-  //lineFilter->SetPositiveContrast(positivecontrast);
-  //lineFilter->SetMinimumLineMeasure(minlinemeasure);
-  //lineFilter->SetAlpha1( static_cast< double >(alpha1));
-  //lineFilter->SetAlpha2( static_cast< double >(alpha2));
-  //lineFilter->SetAngleThreshold (static_cast< double >(anglethreshold) );
-  //lineFilter->SetNormal (static_cast< double >(normal[0]),
-  //                       static_cast< double >(normal[1]),
-  //                       static_cast< double >(normal[2]));
+  typedef itk::HessianToObjectnessMeasureImageFilter< HessianImageType, InternalImageType > ObjectnessFilterType;
+  typedef itk::MultiScaleHessianBasedMeasureImageFilter< InternalImageType, HessianImageType, InternalImageType >
+    MultiScaleEnhancementFilterType;
 
-  objectnessFilter->SetBrightObject( positivecontrast );
-  objectnessFilter->SetScaleObjectnessMeasure( false );
-  objectnessFilter->SetAlpha( alpha );
-  objectnessFilter->SetBeta( beta );
-  objectnessFilter->SetGamma( gamma );
+  // The following code is to generate objectness map.
+  // We prepare two multiscale filters, in case that catheterContrast="both" is specified.
 
-  multiScaleEnhancementFilter->SetInput(smoothing->GetOutput());
-  multiScaleEnhancementFilter->SetSigmaMinimum(minsigma);
-  multiScaleEnhancementFilter->SetSigmaMaximum(maxsigma);
-  multiScaleEnhancementFilter->SetNumberOfSigmaSteps(stepsigma);
-  multiScaleEnhancementFilter->SetHessianToMeasureFilter (objectnessFilter);
+  typename ObjectnessFilterType::Pointer objectnessFilter1 = ObjectnessFilterType::New();
+  typename ObjectnessFilterType::Pointer objectnessFilter2 = ObjectnessFilterType::New();
+  typename MultiScaleEnhancementFilterType::Pointer multiScaleEnhancementFilter1 = MultiScaleEnhancementFilterType::New();
+  typename MultiScaleEnhancementFilterType::Pointer multiScaleEnhancementFilter2 = MultiScaleEnhancementFilterType::New();
 
-  OtsuFilter->SetInput( multiScaleEnhancementFilter->GetOutput());
-  OtsuFilter->SetOutsideValue( 255 );
-  OtsuFilter->SetInsideValue(  0  );
-  OtsuFilter->SetNumberOfHistogramBins( numberOfBins );
-  CCFilter->SetInput (OtsuFilter->GetOutput());
+  typedef itk::BinaryThresholdImageFilter<InternalImageType, OutputImageType> BinaryFilterType;
+  typename BinaryFilterType::Pointer BinaryFilter = BinaryFilterType::New();
+
+  objectnessFilter1->SetBrightObject( true ); // catheterContrast == "positive" or "both"
+  if (catheterContrast == "negative")
+    {
+    objectnessFilter1->SetBrightObject( false );
+    }
+  
+  objectnessFilter1->SetScaleObjectnessMeasure( false );
+  objectnessFilter1->SetAlpha( alpha );
+  objectnessFilter1->SetBeta( beta );
+  objectnessFilter1->SetGamma( gamma );
+  multiScaleEnhancementFilter1->SetInput(smoothing->GetOutput());
+  multiScaleEnhancementFilter1->SetSigmaMinimum(minsigma);
+  multiScaleEnhancementFilter1->SetSigmaMaximum(maxsigma);
+  multiScaleEnhancementFilter1->SetNumberOfSigmaSteps(stepsigma);
+  multiScaleEnhancementFilter1->SetHessianToMeasureFilter (objectnessFilter1);
+  multiScaleEnhancementFilter1->Update();
+
+  typedef itk::AddImageFilter< InternalImageType, InternalImageType, InternalImageType > AddImageFilter;
+  typename AddImageFilter::Pointer AddFilter = AddImageFilter::New();
+  if (catheterContrast == "both")
+    {
+    objectnessFilter2->SetBrightObject( false );
+    objectnessFilter2->SetScaleObjectnessMeasure( false );
+    objectnessFilter2->SetAlpha( alpha );
+    objectnessFilter2->SetBeta( beta );
+    objectnessFilter2->SetGamma( gamma );
+    multiScaleEnhancementFilter2->SetInput(smoothing->GetOutput());
+    multiScaleEnhancementFilter2->SetSigmaMinimum(minsigma);
+    multiScaleEnhancementFilter2->SetSigmaMaximum(maxsigma);
+    multiScaleEnhancementFilter2->SetNumberOfSigmaSteps(stepsigma);
+    multiScaleEnhancementFilter2->SetHessianToMeasureFilter (objectnessFilter2);
+    multiScaleEnhancementFilter2->Update();
+
+    AddFilter->SetInput1( multiScaleEnhancementFilter1->GetOutput() );
+    AddFilter->SetInput2( multiScaleEnhancementFilter2->GetOutput() );
+    AddFilter->Update();
+    BinaryFilter->SetInput( AddFilter->GetOutput() );
+    }
+  else
+    {
+    BinaryFilter->SetInput( multiScaleEnhancementFilter1->GetOutput() );
+    }
+
+  BinaryFilter->SetLowerThreshold( objectnessCutOff );
+  BinaryFilter->Update();
+
+  CCFilter->SetInput ( BinaryFilter->GetOutput() );
   CCFilter->FullyConnectedOff();
 
   RelabelFilter->SetInput ( CCFilter->GetOutput() );
@@ -170,7 +206,14 @@ template<class T> int DoIt( int argc, char * argv[], T )
   typedef itk::LabelStatisticsImageFilter< InternalImageType, OutputImageType > LabelStatisticsImageFilterType;
   typename LabelStatisticsImageFilterType::Pointer labelStatisticsImageFilter = LabelStatisticsImageFilterType::New();
   labelStatisticsImageFilter->SetLabelInput( RelabelFilter->GetInput() );
-  labelStatisticsImageFilter->SetInput( multiScaleEnhancementFilter->GetInput() );
+  if (catheterContrast == "both")
+    {
+    labelStatisticsImageFilter->SetInput( AddFilter->GetInput() );
+    }
+  else
+    {
+    labelStatisticsImageFilter->SetInput( multiScaleEnhancementFilter1->GetInput() );
+    }
   labelStatisticsImageFilter->Update();
   std::cout << "Number of labels: " << labelStatisticsImageFilter->GetNumberOfLabels() << std::endl;
   std::cout << std::endl;  
@@ -198,17 +241,14 @@ template<class T> int DoIt( int argc, char * argv[], T )
       //std::cout << "sum: " << labelStatisticsImageFilter->GetSum( labelValue ) << std::endl;
       //std::cout << "count: " << labelStatisticsImageFilter->GetCount( labelValue ) << std::endl;
       //std::cout << "region: " << labelStatisticsImageFilter->GetRegion( labelValue ) << std::endl;
-      if ( labelStatisticsImageFilter->GetMean( labelValue ) < minimumMeanObjectnessMeasure )
+      if ( labelStatisticsImageFilter->GetMean( labelValue ) < minimumMeanObjectnessMeasure
+           /*  || labelStatisticsImageFilter->GetCount( labelValue ) < minimumObjectSize*/ )
         {
         labelsToRemove.push_back(labelValue);
         }
       }
     }
 
-  //typedef itk::BinaryImageToLabelMapFilter<OutputImageType> BinaryImageToLabelMapFilterType;
-  //BinaryImageToLabelMapFilterType::Pointer BinaryFilter = BinaryImageToLabelMapFilterType::New();
-  //BinaryFilter->SetInput( RelabelFilter->GetOutput() );
-  //BinaryFilter->Update();
   typedef itk::ChangeLabelImageFilter< OutputImageType, OutputImageType >  ChangeLabelFilterType;
   ChangeLabelFilterType::Pointer ChangeLabelFilter = ChangeLabelFilterType::New();
 
@@ -236,18 +276,18 @@ template<class T> int DoIt( int argc, char * argv[], T )
   needleFilter->SetNormal (static_cast< double >(-normal[0]),
                            static_cast< double >(-normal[1]),
                            static_cast< double >(normal[2]));
+
   needleFilter->SetClosestPoint(static_cast< double >(-closestPoint[0]),
                                 static_cast< double >(-closestPoint[1]),
                                 static_cast< double >(closestPoint[2]));
 
-  //writer->SetInput( needleFilter->GetOutput() );
-  //writer->SetInput( RelabelFilter->GetOutput() );
-
   typedef   itk::ImageFileWriter< OutputImageType > WriterType;
+  //typedef   itk::ImageFileWriter< InternalImageType > WriterType;
   typename WriterType::Pointer writer = WriterType::New();
-
   writer->SetFileName( outputVolume.c_str() );
   writer->SetInput( needleFilter->GetOutput() );
+  //writer->SetInput( ChangeLabelFilter->GetOutput() );
+  //writer->SetInput( multiScaleEnhancementFilter->GetOutput() );
   writer->SetUseCompression(1);
 
   try
@@ -260,26 +300,26 @@ template<class T> int DoIt( int argc, char * argv[], T )
     return EXIT_FAILURE ;
     }
 
-  //typedef typename NeedleFilterType::NeedleTransformType TransformType;
-  //TransformType::Pointer transform = needleFilter->GetNeedleTransform();
+  typedef typename NeedleFilterType::NeedleTransformType TransformType;
+  TransformType::Pointer transform = needleFilter->GetNeedleTransform();
 
-  //if (needleTransform != "")
-  //  {
-  //  typedef itk::TransformFileWriter TransformWriterType;
-  //  TransformWriterType::Pointer needleTransformWriter;
-  //  needleTransformWriter= TransformWriterType::New();
-  //  needleTransformWriter->SetFileName( needleTransform );
-  //  needleTransformWriter->SetInput( transform );
-  //  try
-  //    {
-  //    needleTransformWriter->Update();
-  //    }
-  //  catch (itk::ExceptionObject &err)
-  //    {
-  //    std::cerr << err << std::endl;
-  //    return EXIT_FAILURE ;
-  //    }
-  //  }
+  if (needleTransform != "")
+    {
+    typedef itk::TransformFileWriter TransformWriterType;
+    TransformWriterType::Pointer needleTransformWriter;
+    needleTransformWriter= TransformWriterType::New();
+    needleTransformWriter->SetFileName( needleTransform );
+    needleTransformWriter->SetInput( transform );
+    try
+      {
+      needleTransformWriter->Update();
+      }
+    catch (itk::ExceptionObject &err)
+      {
+      std::cerr << err << std::endl;
+      return EXIT_FAILURE ;
+      }
+    }
 
   return EXIT_SUCCESS;
 }

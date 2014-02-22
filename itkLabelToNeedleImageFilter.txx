@@ -178,7 +178,7 @@ LabelToNeedleImageFilter< TInput, TOutput >
       }
 
     // Check the distribution along the eigen vectors
-    if ( RemoveMap[pix]) 
+    if ( !RemoveMap[pix] ) 
       {
       // Check the direction of principal component
       VectorType principalVector = eigenMatrix[2];

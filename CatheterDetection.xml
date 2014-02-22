@@ -46,32 +46,51 @@ This work is part of NIH 5R01 CA111288 -- Enabling Technologies for MRI-guided P
     <label>Smoothing</label>
     <description>Smoothing parameter</description>
     <double>
-      <name>sigma1</name>
-      <longflag>sigma1</longflag>
+      <name>conductance</name>
+      <longflag>conductance</longflag>
+      <flag>d</flag>
+      <label>Conductance</label>
+      <description>Conductance for Curvature Anisotropic Diffusion Image Filter</description>
+      <default>5.0</default>
+    </double>
+    <integer>
+      <name>iterations</name>
+      <longflag>iterations</longflag>
+      <flag>i</flag>
+      <label>Iterations</label>
+      <description>The number of iterations for Curvature Anisotropic Diffusion Image Filter</description>
+      <default>5</default>
+    </integer>
+    <double>
+      <name>timeStep</name>
+      <longflag>timestep</longflag>
       <flag>s</flag>
-      <label>Sigma1</label>
-      <description>Sigma value in physical units (e.g., mm) of the Gaussian kernel for smoothing</description>
-      <default>0.5</default>
+      <label>Time Step</label>
+      <description>Time step for Curvature Anisotropic Diffusion Image Filter</description>
+      <default>0.03125</default>
     </double>
   </parameters>
   <parameters>
     <label>Hessian and Eigen Analysis</label>
     <description>Hessian and eigen analysis parameters</description>
-    <boolean>
-      <name>positivecontrast</name>
-      <longflag>positivecontrast</longflag>
+    <string-enumeration>
+      <name>catheterContrast</name>
+      <longflag>cathetercontrast</longflag>
       <flag>p</flag>
-      <label>Pos. Contrast</label>
-      <description>Check if the needle is positive contrast (e.g. CT)</description>
-      <default>false</default>
-    </boolean>
+      <label>Catheter Contrast</label>
+      <description>Contrast of the catheter against background </description>
+      <default>positive</default>
+      <element>positive</element>
+      <element>negative</element>
+      <element>both</element>
+    </string-enumeration>
     <double>
       <name>minsigma</name>
       <longflag>minsigma</longflag>
       <flag>u</flag>
       <label>Min. Sigma</label>
       <description>Minimum Sigma value in physical units (e.g., mm) of the Gaussian kernel for needle thickness</description>
-      <default>0.5</default>
+      <default>1.0</default>
     </double>
     <double>
       <name>maxsigma</name>
@@ -79,7 +98,7 @@ This work is part of NIH 5R01 CA111288 -- Enabling Technologies for MRI-guided P
       <flag>v</flag>
       <label>Max. Sigma</label>
       <description>Maximum Sigma value in physical units (e.g., mm) of the Gaussian kernel for needle thickness</description>
-      <default>1.3</default>
+      <default>2.0</default>
     </double>
     <integer>
       <name>stepsigma</name>
@@ -113,13 +132,27 @@ This work is part of NIH 5R01 CA111288 -- Enabling Technologies for MRI-guided P
       <description>Gamma parameter for vesselness filter</description>
       <default>5.0</default>
     </double>
+
+  </parameters>
+
+  <parameters>
+    <label>Threshold Parameters</label>
+    <description>Parameters threshold objectness distribution and labels</description>
+    <double>
+      <name>objectnessCutOff</name>
+      <longflag>objCutOff</longflag>
+      <flag>o</flag>
+      <label>Objectness Cutoff Value</label>
+      <description>Objectness cutoff value</description>
+      <default>0.6</default>
+    </double>
     <double>
       <name>minimumMeanObjectnessMeasure</name>
       <longflag>minMeanObj</longflag>
       <flag>m</flag>
       <label>Min. Mean Objectness</label>
       <description>Minimum mean objectiveness measure in a region</description>
-      <default>0.2</default>
+      <default>0.8</default>
     </double>
     <double>
       <name>anglethreshold</name>
@@ -127,7 +160,7 @@ This work is part of NIH 5R01 CA111288 -- Enabling Technologies for MRI-guided P
       <flag>t</flag>
       <label>Angle Threshold</label>
       <description>Threshold for angle from Normal Vector (deg)</description>
-      <default>25.0</default>
+      <default>90.0</default>
     </double>
     <double-vector>
       <name>normal</name>
@@ -137,20 +170,7 @@ This work is part of NIH 5R01 CA111288 -- Enabling Technologies for MRI-guided P
       <description>Normal vector for base needle orientation</description>
       <default>0.0,0.0,1.0</default>
     </double-vector>
-  </parameters>
 
-  <parameters>
-    <label>Otsu Threshold Parameters</label>
-    <description>Parameters for Otsu Thresholding</description>
-    <integer>
-      <name>numberOfBins</name>
-      <longflag>--numberOfBins</longflag>
-      <description>
-	This is an advanced parameter. The number of bins in the histogram used to model the probability mass function of the two intensity distributions. Small numbers of bins may result in a more conservative threshold. The default should suffice for most applications. Experimentation is the only way to see the effect of varying this parameter.
-      </description>
-      <label>Number of Histogram Bins</label>
-      <default>128</default>
-    </integer>
     <integer>
       <name>minimumObjectSize</name>
       <longflag>--minimumObjectSize</longflag>
@@ -159,6 +179,7 @@ This work is part of NIH 5R01 CA111288 -- Enabling Technologies for MRI-guided P
       <default>50</default>
     </integer>
   </parameters>
+
   <parameters>
     <label>Catheter Identification Parameters</label>
     <description>Parameters for Catheter Identification using PCA</description>
@@ -169,7 +190,7 @@ This work is part of NIH 5R01 CA111288 -- Enabling Technologies for MRI-guided P
 	Minimum length of the principal axis of the needle artifact.
       </description>
       <label>Min. Principal Axis Length</label>
-      <default>50.0</default>
+      <default>100.0</default>
     </float>
     <float>
       <name>maxThickness</name>
@@ -178,7 +199,7 @@ This work is part of NIH 5R01 CA111288 -- Enabling Technologies for MRI-guided P
 	Maximum thickness of the artifact.
       </description>
       <label>Max. Thickness</label>
-      <default>10.0</default>
+      <default>100.0</default>
     </float>
     <double-vector>
       <name>closestPoint</name>
@@ -188,8 +209,5 @@ This work is part of NIH 5R01 CA111288 -- Enabling Technologies for MRI-guided P
       <description>Point closet to the needle</description>
       <default>0.0,0.0,0.0</default>
     </double-vector>
-
   </parameters>
-
-
 </executable>
