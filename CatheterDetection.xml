@@ -209,5 +209,15 @@ This work is part of NIH 5R01 CA111288 -- Enabling Technologies for MRI-guided P
       <description>Point closet to the needle</description>
       <default>0.0,0.0,0.0</default>
     </double-vector>
+    <string-enumeration>
+      <name>detectionPoint</name>
+      <longflag>detectionPoint</longflag>
+      <flag>q</flag>
+      <label>Detection Point</label>
+      <description>Point to detect</description>
+      <default>middle</default>
+      <element>tip</element>
+      <element>middle</element>
+    </string-enumeration>
   </parameters>
 </executable>

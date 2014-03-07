@@ -39,6 +39,7 @@ template < typename  TInput, typename TOutput  >
 LabelToNeedleImageFilter< TInput, TOutput >
 ::LabelToNeedleImageFilter()
 {
+  m_DetectionPoint = DETECT_TIP;
 }
 
 
@@ -244,7 +245,14 @@ LabelToNeedleImageFilter< TInput, TOutput >
           {
           closestDistance = distance;
           closestPosition = meanVector;
-          closestTip = meanVector + needleNorm * max;
+          if (m_DetectionPoint == DETECT_TIP)
+            {
+            closestTip = meanVector + needleNorm * max;
+            }
+          else
+            {
+            closestTip = meanVector;
+            }
           closestNormal = needleNorm;
           std::cout << "Center of the closest needle = " << closestPosition << std::endl;
           }

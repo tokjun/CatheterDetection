@@ -33,6 +33,13 @@ class ITK_EXPORT LabelToNeedleImageFilter : public
 ImageToImageFilter< TInput, TOutput >
 {
 public:
+
+  enum {
+    DETECT_TIP=0,
+    DETECT_MID,
+  };
+
+public:
   /** Standard class typedefs. */
   typedef LabelToNeedleImageFilter Self;
   typedef ImageToImageFilter<
@@ -45,7 +52,6 @@ public:
   typedef typename Superclass::OutputImageType           OutputImageType;
   typedef typename InputImageType::PixelType             InputPixelType;
   typedef typename OutputImageType::PixelType            OutputPixelType;
-  
   typedef typename itk::CenteredAffineTransform< double, 3 >      NeedleTransformType;
 
   typedef itk::Vector< double, 3 > VectorType;
@@ -70,6 +76,9 @@ public:
 
   itkSetMacro(AngleThreshold, double);
   itkGetConstMacro(AngleThreshold, double);
+
+  itkSetMacro(DetectionPoint, int);
+  itkGetConstMacro(DetectionPoint, int);
 
   inline void SetNormal(double x, double y, double z)
   {
@@ -121,6 +130,7 @@ private:
   double m_AngleThreshold;
   VectorType m_Normal;
   VectorType m_ClosestPoint;
+  int m_DetectionPoint;
 
   NeedleTransformType::Pointer m_NeedleTransform;
 

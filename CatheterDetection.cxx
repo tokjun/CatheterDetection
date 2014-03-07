@@ -269,6 +269,14 @@ template<class T> int DoIt( int argc, char * argv[], T )
   needleFilter->SetMinPrincipalAxisLength( static_cast< float >(minPrincipalAxisLength) );
   needleFilter->SetMaxThickness (static_cast< float >(maxThickness) );
   needleFilter->SetAngleThreshold (static_cast< double >(anglethreshold) );
+  if ( detectionPoint == "middle" )
+    {
+    needleFilter->SetDetectionPoint ( NeedleFilterType::DETECT_MID  );
+    }
+  else
+    {
+    needleFilter->SetDetectionPoint ( NeedleFilterType::DETECT_TIP );
+    }
 
   // Set default orientation and closest point of the needle for detection
   // Note that the parameter is passed in RAS coordinate system
@@ -305,11 +313,19 @@ template<class T> int DoIt( int argc, char * argv[], T )
 
   if (needleTransform != "")
     {
+    // Convert to affine transform
+    typedef itk::AffineTransform< double, 3 > AffineTransformType;
+    AffineTransformType::Pointer affine = AffineTransformType::New();
+    affine->SetIdentity();
+    affine->SetCenter( transform->GetCenter() );
+    affine->SetMatrix( transform->GetMatrix() );
+    affine->SetTranslation( transform->GetTranslation() );
+
     typedef itk::TransformFileWriter TransformWriterType;
     TransformWriterType::Pointer needleTransformWriter;
     needleTransformWriter= TransformWriterType::New();
     needleTransformWriter->SetFileName( needleTransform );
-    needleTransformWriter->SetInput( transform );
+    needleTransformWriter->SetInput( affine );
     try
       {
       needleTransformWriter->Update();
